@@ -33,3 +33,5 @@ efivar_validate			PASS
 file_open_root			PASS
 dax_fault			PASS
 x509_*				PASS
+# 4.1.37
+inode_change_ok			PASS
