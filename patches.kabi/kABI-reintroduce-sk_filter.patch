@@ -1,0 +1,55 @@
+From: Jiri Slaby <jslaby@suse.cz>
+Date: Wed, 14 Dec 2016 09:09:18 +0100
+Subject: kABI: reintroduce sk_filter
+Patch-mainline: Never, kabi workaround
+References: bsc#1009969
+
+Backport of mainline commit ac6e780070e3 ("tcp: take care of truncations
+done by sk_filter()") makde sk_filter() an inline wrapper.
+
+Restore the old function, because it is a part of kABI. The function
+is now only a wrapper to sk_filter_trim_cap.
+
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+Signed-off-by: Michal Kubecek <mkubecek@suse.cz>
+---
+ include/linux/filter.h | 5 +----
+ net/core/filter.c      | 6 ++++++
+ 2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/filter.h b/include/linux/filter.h
+index ad808ab81ffa..2799f6e90b90 100644
+--- a/include/linux/filter.h
++++ b/include/linux/filter.h
+@@ -359,10 +359,7 @@ static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
+ #endif /* CONFIG_DEBUG_SET_MODULE_RONX */
+ 
+ int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap);
+-static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
+-{
+-	return sk_filter_trim_cap(sk, skb, 1);
+-}
++int sk_filter(struct sock *sk, struct sk_buff *skb);
+ 
+ void bpf_prog_select_runtime(struct bpf_prog *fp);
+ void bpf_prog_free(struct bpf_prog *fp);
+diff --git a/net/core/filter.c b/net/core/filter.c
+index b3888d0fef82..1e5c0c3d900e 100644
+--- a/net/core/filter.c
++++ b/net/core/filter.c
+@@ -46,6 +46,12 @@
+ #include <linux/if_vlan.h>
+ #include <linux/bpf.h>
+ 
++int sk_filter(struct sock *sk, struct sk_buff *skb)
++{
++	return sk_filter_trim_cap(sk, skb, 1);
++}
++EXPORT_SYMBOL(sk_filter);
++
+ /**
+  *	sk_filter_trim_cap - run a packet through a socket filter
+  *	@sk: sock associated with &sk_buff
+-- 
+2.11.0
+
