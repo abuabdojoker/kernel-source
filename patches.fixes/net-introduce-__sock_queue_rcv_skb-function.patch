@@ -1,0 +1,92 @@
+From: samanthakumar <samanthakumar@google.com>
+Date: Tue, 5 Apr 2016 12:41:15 -0400
+Subject: net: introduce __sock_queue_rcv_skb() function
+Patch-mainline: v4.7-rc1
+Git-commit: e6afc8ace6dd5cef5e812f26c72579da8806f5ac (partial)
+References: bsc#1009969
+No-fix: 30c7be26fd3587abcb69587f781098e3ca2d565b
+No-fix: 10df8e6152c6c400a563a673e9956320bfce1871
+No-fix: e83c6744e81abc93a20d0eb3b7f504a176a6126a
+No-fix: a612769774a30e4fc143c4cb6395c12573415660
+No-fix: ce25d66ad5f8d921bac5fe2d32d62fa30c0f9a70
+No-fix: 595d0b29463343c3be995d3948930b8231e5b8cd
+No-fix: 31c2e4926fe912f88388bcaa8450fcaa8f2ece47
+No-fix: 9f9a45beaa96188085d52d273c2ecb052c7d8d27
+No-fix: 4d0fc73ebe94ac984a187f21fbf4f3a1ac846f5a
+No-fix: 1da8c681d5c122afe9fbadc02e92a0f9e3f7af44
+
+This allows to separate the call to sk_filter() out of
+sock_queue_rcv_skb() function. In mainline, this is a part of larger
+commit which does something else and has an impressive list of "Fixes:"
+follow-ups, pick only the part we need.
+
+Signed-off-by: Sam Kumar <samanthakumar@google.com>
+Signed-off-by: Willem de Bruijn <willemb@google.com>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+Acked-by: Michal Kubecek <mkubecek@suse.cz>
+
+---
+ include/net/sock.h |  1 +
+ net/core/sock.c    | 19 +++++++++++++------
+ 2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/include/net/sock.h b/include/net/sock.h
+index e19fecd9d63e..3f5cdfecfa6c 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -1981,6 +1981,7 @@ void sk_reset_timer(struct sock *sk, struct timer_list *timer,
+ 
+ void sk_stop_timer(struct sock *sk, struct timer_list *timer);
+ 
++int __sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
+ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
+ 
+ int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb);
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 47fc8bb3b946..9a022b944784 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -431,9 +431,8 @@ static void sock_disable_timestamp(struct sock *sk, unsigned long flags)
+ }
+ 
+ 
+-int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
++int __sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+ {
+-	int err;
+ 	unsigned long flags;
+ 	struct sk_buff_head *list = &sk->sk_receive_queue;
+ 
+@@ -443,10 +442,6 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+ 		return -ENOMEM;
+ 	}
+ 
+-	err = sk_filter(sk, skb);
+-	if (err)
+-		return err;
+-
+ 	if (!sk_rmem_schedule(sk, skb, skb->truesize)) {
+ 		atomic_inc(&sk->sk_drops);
+ 		return -ENOBUFS;
+@@ -469,6 +464,18 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+ 		sk->sk_data_ready(sk);
+ 	return 0;
+ }
++EXPORT_SYMBOL(__sock_queue_rcv_skb);
++
++int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
++{
++	int err;
++
++	err = sk_filter(sk, skb);
++	if (err)
++		return err;
++
++	return __sock_queue_rcv_skb(sk, skb);
++}
+ EXPORT_SYMBOL(sock_queue_rcv_skb);
+ 
+ int sk_receive_skb(struct sock *sk, struct sk_buff *skb, const int nested)
+-- 
+2.11.0
+
