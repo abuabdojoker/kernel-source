@@ -1,0 +1,108 @@
+From: Willem de Bruijn <willemb@google.com>
+Date: Tue, 12 Jul 2016 18:18:56 -0400
+Subject: rose: limit sk_filter trim to payload
+Patch-mainline: v4.7
+Git-commit: f4979fcea7fd36d8e2f556abef86f80e0d5af1ba
+References: bsc#1009969
+
+Sockets can have a filter program attached that drops or trims
+incoming packets based on the filter program return value.
+
+Rose requires data packets to have at least ROSE_MIN_LEN bytes. It
+verifies this on arrival in rose_route_frame and unconditionally pulls
+the bytes in rose_recvmsg. The filter can trim packets to below this
+value in-between, causing pull to fail, leaving the partial header at
+the time of skb_copy_datagram_msg.
+
+Place a lower bound on the size to which sk_filter may trim packets
+by introducing sk_filter_trim_cap and call this for rose packets.
+
+Signed-off-by: Willem de Bruijn <willemb@google.com>
+Acked-by: Daniel Borkmann <daniel@iogearbox.net>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+Acked-by: Michal Kubecek <mkubecek@suse.cz>
+
+openSUSE-13.2: we only need sk_filter_trim_cap() function but the change
+in rose driver make good sense so let's take the whole patch.
+
+---
+ include/linux/filter.h | 6 +++++-
+ net/core/filter.c      | 9 +++++----
+ net/rose/rose_in.c     | 3 ++-
+ 3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/filter.h b/include/linux/filter.h
+index 1ce6e1049a3b..ad808ab81ffa 100644
+--- a/include/linux/filter.h
++++ b/include/linux/filter.h
+@@ -358,7 +358,11 @@ static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
+ }
+ #endif /* CONFIG_DEBUG_SET_MODULE_RONX */
+ 
+-int sk_filter(struct sock *sk, struct sk_buff *skb);
++int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap);
++static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
++{
++	return sk_filter_trim_cap(sk, skb, 1);
++}
+ 
+ void bpf_prog_select_runtime(struct bpf_prog *fp);
+ void bpf_prog_free(struct bpf_prog *fp);
+diff --git a/net/core/filter.c b/net/core/filter.c
+index 238bb3f9c51d..b3888d0fef82 100644
+--- a/net/core/filter.c
++++ b/net/core/filter.c
+@@ -47,9 +47,10 @@
+ #include <linux/bpf.h>
+ 
+ /**
+- *	sk_filter - run a packet through a socket filter
++ *	sk_filter_trim_cap - run a packet through a socket filter
+  *	@sk: sock associated with &sk_buff
+  *	@skb: buffer to filter
++ *	@cap: limit on how short the eBPF program may trim the packet
+  *
+  * Run the filter code and then cut skb->data to correct size returned by
+  * SK_RUN_FILTER. If pkt_len is 0 we toss packet. If skb->len is smaller
+@@ -58,7 +59,7 @@
+  * be accepted or -EPERM if the packet should be tossed.
+  *
+  */
+-int sk_filter(struct sock *sk, struct sk_buff *skb)
++int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap)
+ {
+ 	int err;
+ 	struct sk_filter *filter;
+@@ -80,13 +81,13 @@ int sk_filter(struct sock *sk, struct sk_buff *skb)
+ 	if (filter) {
+ 		unsigned int pkt_len = SK_RUN_FILTER(filter, skb);
+ 
+-		err = pkt_len ? pskb_trim(skb, pkt_len) : -EPERM;
++		err = pkt_len ? pskb_trim(skb, max(cap, pkt_len)) : -EPERM;
+ 	}
+ 	rcu_read_unlock();
+ 
+ 	return err;
+ }
+-EXPORT_SYMBOL(sk_filter);
++EXPORT_SYMBOL(sk_filter_trim_cap);
+ 
+ static u64 __skb_get_pay_offset(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
+ {
+diff --git a/net/rose/rose_in.c b/net/rose/rose_in.c
+index 79c4abcfa6b4..0a6394754e81 100644
+--- a/net/rose/rose_in.c
++++ b/net/rose/rose_in.c
+@@ -164,7 +164,8 @@ static int rose_state3_machine(struct sock *sk, struct sk_buff *skb, int framety
+ 		rose_frames_acked(sk, nr);
+ 		if (ns == rose->vr) {
+ 			rose_start_idletimer(sk);
+-			if (sock_queue_rcv_skb(sk, skb) == 0) {
++			if (sk_filter_trim_cap(sk, skb, ROSE_MIN_LEN) == 0 &&
++			    __sock_queue_rcv_skb(sk, skb) == 0) {
+ 				rose->vr = (rose->vr + 1) % ROSE_MODULUS;
+ 				queued = 1;
+ 			} else {
+-- 
+2.11.0
+
