@@ -1,0 +1,30 @@
+From: Josef Bacik <jbacik@fb.com>
+Date: Tue, 19 May 2015 10:44:04 -0400
+Subject: Btrfs: set UNWRITTEN for prealloc'ed extents in fiemap
+Git-commit: 0d2b2372e097cd3b4150d3ec91e79ac3c5cc750e
+Patch-mainline: v4.2-rc2
+References: bsc#1025047
+
+We should be doing this, it's weird we hadn't been doing this.
+
+Signed-off-by: Josef Bacik <jbacik@fb.com>
+Signed-off-by: Chris Mason <clm@fb.com>
+Acked-by: Jeff Mahoney <jeffm@suse.com>
+---
+ fs/btrfs/extent_io.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 856c2e8..a3ec2c8 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -4497,6 +4497,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+ 		}
+ 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
+ 			flags |= FIEMAP_EXTENT_ENCODED;
++		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
++			flags |= FIEMAP_EXTENT_UNWRITTEN;
+ 
+ 		free_extent_map(em);
+ 		em = NULL;
+
