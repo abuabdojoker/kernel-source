@@ -6426,6 +6426,19 @@ Automatically created from "patches.kernel.org/patch-2.6.31" by xen-port-patches
  
  	skb_orphan(skb);
  
+--- a/drivers/xen/netback/netback.c
++++ b/drivers/xen/netback/netback.c
+@@ -694,8 +694,9 @@ static void net_rx_action(unsigned long
+ 		   non-linear skbs destined for flipping interfaces) */
+ 		if (!netif->copying_receiver) {
+ 			atomic_set(&(skb_shinfo(skb)->dataref), 1);
+-			skb_shinfo(skb)->frag_list = NULL;
+ 			skb_shinfo(skb)->nr_frags = 0;
++			skb_shinfo(skb)->tx_flags = 0;
++			skb_frag_list_init(skb);
+ 			netbk_free_pages(nr_frags, meta + npo.meta_cons + 1);
+ 		}
+ 
 --- a/drivers/xen/netback/xenbus.c
 +++ b/drivers/xen/netback/xenbus.c
 @@ -39,7 +39,7 @@ static void netback_disconnect(struct de
@@ -7749,16 +7762,3 @@ Automatically created from "patches.kernel.org/patch-2.6.31" by xen-port-patches
  struct mm_struct init_mm = {
  	.mm_rb		= RB_ROOT,
  	.pgd		= swapper_pg_dir,
---- a/drivers/xen/netback/netback.c
-+++ b/drivers/xen/netback/netback.c
-@@ -694,8 +694,9 @@ static void net_rx_action(unsigned long
- 		   non-linear skbs destined for flipping interfaces) */
- 		if (!netif->copying_receiver) {
- 			atomic_set(&(skb_shinfo(skb)->dataref), 1);
--			skb_shinfo(skb)->frag_list = NULL;
- 			skb_shinfo(skb)->nr_frags = 0;
-+			skb_shinfo(skb)->tx_flags = 0;
-+			skb_frag_list_init(skb);
- 			netbk_free_pages(nr_frags, meta + npo.meta_cons + 1);
- 		}
- 
