@@ -1716,7 +1716,7 @@ Acked-by: jbeulich@suse.com
  quiet_cmd_mkcapflags = MKCAP   $@
 --- a/arch/x86/kernel/cpu/amd.c
 +++ b/arch/x86/kernel/cpu/amd.c
-@@ -657,7 +657,9 @@ static void init_amd_bd(struct cpuinfo_x
+@@ -668,7 +668,9 @@ static void init_amd_bd(struct cpuinfo_x
  
  static void init_amd(struct cpuinfo_x86 *c)
  {
@@ -3305,7 +3305,7 @@ Acked-by: jbeulich@suse.com
  }
  
  /* This is a twin to netbk_gop_skb.  Assume that netbk_gop_skb was
-@@ -1102,11 +1113,11 @@ static gnttab_map_grant_ref_t *netbk_get
+@@ -1103,11 +1114,11 @@ static gnttab_map_grant_ref_t *netbk_get
  {
  	struct skb_shared_info *shinfo = skb_shinfo(skb);
  	skb_frag_t *frags = shinfo->frags;
@@ -3319,7 +3319,7 @@ Acked-by: jbeulich@suse.com
  
  	for (i = start; i < shinfo->nr_frags; i++, txp++) {
  		pending_idx = pending_ring[MASK_PEND_IDX(pending_cons++)];
-@@ -1118,7 +1129,7 @@ static gnttab_map_grant_ref_t *netbk_get
+@@ -1119,7 +1130,7 @@ static gnttab_map_grant_ref_t *netbk_get
  		memcpy(&pending_tx_info[pending_idx].req, txp, sizeof(*txp));
  		netif_get(netif);
  		pending_tx_info[pending_idx].netif = netif;
@@ -3328,7 +3328,7 @@ Acked-by: jbeulich@suse.com
  	}
  
  	return mop;
-@@ -1128,7 +1139,7 @@ static int netbk_tx_check_mop(struct sk_
+@@ -1129,7 +1140,7 @@ static int netbk_tx_check_mop(struct sk_
  			       gnttab_map_grant_ref_t **mopp)
  {
  	gnttab_map_grant_ref_t *mop = *mopp;
@@ -3337,7 +3337,7 @@ Acked-by: jbeulich@suse.com
  	netif_t *netif = pending_tx_info[pending_idx].netif;
  	netif_tx_request_t *txp;
  	struct skb_shared_info *shinfo = skb_shinfo(skb);
-@@ -1149,12 +1160,12 @@ static int netbk_tx_check_mop(struct sk_
+@@ -1150,12 +1161,12 @@ static int netbk_tx_check_mop(struct sk_
  	}
  
  	/* Skip first skb fragment if it is on same page as header fragment. */
@@ -3352,7 +3352,7 @@ Acked-by: jbeulich@suse.com
  
  		/* Check error status: if okay then remember grant handle. */
  		newerr = (++mop)->status;
-@@ -1182,7 +1193,7 @@ static int netbk_tx_check_mop(struct sk_
+@@ -1183,7 +1194,7 @@ static int netbk_tx_check_mop(struct sk_
  		pending_idx = *((u16 *)skb->data);
  		netif_idx_release(pending_idx);
  		for (j = start; j < i; j++) {
@@ -3361,7 +3361,7 @@ Acked-by: jbeulich@suse.com
  			netif_idx_release(pending_idx);
  		}
  
-@@ -1201,20 +1212,16 @@ static void netbk_fill_frags(struct sk_b
+@@ -1202,20 +1213,16 @@ static void netbk_fill_frags(struct sk_b
  	int i;
  
  	for (i = 0; i < nr_frags; i++) {
@@ -3385,7 +3385,7 @@ Acked-by: jbeulich@suse.com
  
  		skb->len += txp->size;
  		skb->data_len += txp->size;
-@@ -1447,14 +1454,11 @@ static void net_tx_action(unsigned long
+@@ -1448,14 +1455,11 @@ static void net_tx_action(unsigned long
  		__skb_put(skb, data_len);
  
  		skb_shinfo(skb)->nr_frags = ret;
@@ -3436,7 +3436,7 @@ Acked-by: jbeulich@suse.com
  		__skb_queue_tail(&np->rx_batch, skb);
  	}
 @@ -794,8 +794,9 @@ no_skb:
- 		BUG_ON((signed short)ref < 0);
+ 		BUG_ON(IS_ERR_VALUE((int32_t)ref));
  		np->grant_rx_ref[id] = ref;
  
 -		pfn = page_to_pfn(skb_shinfo(skb)->frags[0].page);
@@ -3449,7 +3449,7 @@ Acked-by: jbeulich@suse.com
  		if (!np->copying_receiver) {
 @@ -922,13 +923,13 @@ static void xennet_make_frags(struct sk_
  		ref = gnttab_claim_grant_reference(&np->gref_tx_head);
- 		BUG_ON((signed short)ref < 0);
+ 		BUG_ON(IS_ERR_VALUE((int32_t)ref));
  
 -		mfn = pfn_to_mfn(page_to_pfn(frag->page));
 +		mfn = pfn_to_mfn(page_to_pfn(skb_frag_page(frag)));
@@ -4050,7 +4050,7 @@ Acked-by: jbeulich@suse.com
  #ifdef HAVE_XEN_PLATFORM_COMPAT_H
 --- a/include/linux/pci.h
 +++ b/include/linux/pci.h
-@@ -371,11 +371,13 @@ struct pci_dev {
+@@ -375,11 +375,13 @@ struct pci_dev {
  	const struct attribute_group **msi_irq_groups;
  #endif
  	struct pci_vpd *vpd;
