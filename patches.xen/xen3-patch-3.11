@@ -23,7 +23,7 @@ Acked-by: jbeulich@suse.com
  	select SWIOTLB_XEN
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -49,7 +49,7 @@ export	TEXT_OFFSET GZFLAGS
+@@ -51,7 +51,7 @@ export	TEXT_OFFSET GZFLAGS
  core-y		+= arch/arm64/kernel/ arch/arm64/mm/
  core-$(CONFIG_NET) += arch/arm64/net/
  core-$(CONFIG_KVM) += arch/arm64/kvm/
@@ -2284,17 +2284,14 @@ Acked-by: jbeulich@suse.com
  		}
  	}
  	xenbus_backend_device_register();
-@@ -1488,8 +1486,7 @@ static int print_device_status(struct de
+@@ -1487,24 +1485,22 @@ static int print_device_status(struct de
  
  	if (!dev->driver) {
  		/* Information only: is this too noisy? */
 -		pr_info("XENBUS: Device with no driver: %s\n",
 -			xendev->nodename);
 +		pr_info("Device with no driver: %s\n", xendev->nodename);
- 		return 0;
- 	}
- 
-@@ -1497,15 +1494,14 @@ static int print_device_status(struct de
+ 	} else if (xendev->state < XenbusStateConnected) {
  		enum xenbus_state rstate = XenbusStateUnknown;
  		if (xendev->otherend)
  			rstate = xenbus_read_driver_state(xendev->otherend);
@@ -2304,17 +2301,22 @@ Acked-by: jbeulich@suse.com
 +		pr_warn("Timeout connecting to device: %s"
 +			" (local state %d, remote state %d)\n",
 +			xendev->nodename, xendev->state, rstate);
- 	}
+ 	} else if (xendev->state == XenbusStateConnected) {
+ 		struct xenbus_driver *xendrv = to_xenbus_driver(dev->driver);
  
- 	xendrv = to_xenbus_driver(dev->driver);
- 	if (xendrv->is_ready && !xendrv->is_ready(xendev))
--		pr_warning("XENBUS: Device not ready: %s\n",
--			   xendev->nodename);
-+		pr_warn("Device not ready: %s\n", xendev->nodename);
+ 		if (xendrv->is_ready && !xendrv->is_ready(xendev))
+-			pr_warning("XENBUS: Device not ready: %s\n",
+-				   xendev->nodename);
++			pr_warn("Device not ready: %s\n", xendev->nodename);
+ 	} else
+-		pr_warning("XENBUS: Unexpected state %d: %s\n",
+-			   xendev->state, xendev->nodename);
++		pr_warn("Unexpected state %d: %s\n",
++			xendev->state, xendev->nodename);
  
  	return 0;
  }
-@@ -1539,8 +1535,7 @@ static void wait_for_devices(struct xenb
+@@ -1538,8 +1534,7 @@ static void wait_for_devices(struct xenb
  	while (exists_connecting_device(drv)) {
  		if (time_after(jiffies, start + (seconds_waited+5)*HZ)) {
  			if (!seconds_waited)
@@ -2545,7 +2547,7 @@ Acked-by: jbeulich@suse.com
  #endif
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -5807,8 +5807,8 @@ static void __setup_per_zone_wmarks(void
+@@ -5877,8 +5877,8 @@ static void __setup_per_zone_wmarks(void
  			high = percpu_pagelist_fraction
  			       ? zone->present_pages / percpu_pagelist_fraction
  			       : 5 * zone_batchsize(zone);
