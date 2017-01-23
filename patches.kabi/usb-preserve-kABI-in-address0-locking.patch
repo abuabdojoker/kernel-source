@@ -66,16 +66,16 @@ Signed-off-by: Oliver Neukum <ONeukum@suse.com>
  	mutex_unlock(&usb_port_peer_mutex);
 --- a/drivers/usb/core/hub.c
 +++ b/drivers/usb/core/hub.c
-@@ -102,6 +102,8 @@ EXPORT_SYMBOL_GPL(ehci_cf_port_reset_rws
- static void hub_release(struct kref *kref);
- static int usb_reset_and_verify_device(struct usb_device *udev);
+@@ -104,6 +104,8 @@ static int usb_reset_and_verify_device(s
+ static void hub_usb3_port_prepare_disable(struct usb_hub *hub,
+ 					  struct usb_port *port_dev);
  
 +static DEFINE_MUTEX(global_address0_mutex);
 +
  static inline char *portspeed(struct usb_hub *hub, int portstatus)
  {
  	if (hub_is_superspeed(hub->hdev))
-@@ -2066,7 +2068,7 @@ static void choose_devnum(struct usb_dev
+@@ -2012,7 +2014,7 @@ static void choose_devnum(struct usb_dev
  	struct usb_bus	*bus = udev->bus;
  
  	/* be safe when more hub events are proceed in parallel */
@@ -84,7 +84,7 @@ Signed-off-by: Oliver Neukum <ONeukum@suse.com>
  	if (udev->wusb) {
  		devnum = udev->portnum + 1;
  		BUG_ON(test_bit(devnum, bus->devmap.devicemap));
-@@ -2084,7 +2086,7 @@ static void choose_devnum(struct usb_dev
+@@ -2030,7 +2032,7 @@ static void choose_devnum(struct usb_dev
  		set_bit(devnum, bus->devmap.devicemap);
  		udev->devnum = devnum;
  	}
@@ -93,7 +93,7 @@ Signed-off-by: Oliver Neukum <ONeukum@suse.com>
  }
  
  static void release_devnum(struct usb_device *udev)
-@@ -4257,7 +4259,7 @@ hub_port_init (struct usb_hub *hub, stru
+@@ -4226,7 +4228,7 @@ hub_port_init (struct usb_hub *hub, stru
  	if (oldspeed == USB_SPEED_LOW)
  		delay = HUB_LONG_RESET_TIME;
  
@@ -102,7 +102,7 @@ Signed-off-by: Oliver Neukum <ONeukum@suse.com>
  
  	/* Reset the device; full speed may morph to high speed */
  	/* FIXME a USB 2.0 device may morph into SuperSpeed on reset. */
-@@ -4539,7 +4541,7 @@ fail:
+@@ -4508,7 +4510,7 @@ fail:
  		hub_port_disable(hub, port1, 0);
  		update_devnum(udev, devnum);	/* for disconnect processing */
  	}

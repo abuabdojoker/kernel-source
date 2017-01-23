@@ -52,9 +52,9 @@ Acked-by: Michal Kubecek <mkubecek@suse.cz>
 @@ -4060,6 +4060,7 @@ static enum gro_result dev_gro_receive(s
  		NAPI_GRO_CB(skb)->flush = 0;
  		NAPI_GRO_CB(skb)->free = 0;
- 		NAPI_GRO_CB(skb)->encap_mark = 0;
-+		NAPI_GRO_CB(skb)->is_fou = 0;
  		NAPI_GRO_CB(skb)->recursion_counter = 0;
++		NAPI_GRO_CB(skb)->is_fou = 0;
+ 		NAPI_GRO_CB(skb)->encap_mark = 0;
  		NAPI_GRO_CB(skb)->gro_remcsum_start = 0;
  
 --- a/net/ipv4/fou.c
